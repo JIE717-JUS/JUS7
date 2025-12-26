@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>简易篮球小游戏</title>
+    <title>真实感投篮小游戏</title>
     <style>
         body {
             margin: 0;
@@ -13,7 +13,7 @@
         }
         #gameCanvas {
             border: 3px solid #333;
-            background-color: #e0f7fa;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
         }
         .tips {
             margin-top: 10px;
@@ -23,103 +23,173 @@
     </style>
 </head>
 <body>
-    <h1>投篮小游戏</h1>
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <h1>真实感投篮小游戏</h1>
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
     <div class="tips">按 空格 投篮 | 按 左右箭头 移动人物</div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 游戏元素参数
-        let playerX = 275; // 人物X坐标
-        const playerY = 320; // 人物Y坐标（固定高度）
-        const playerWidth = 50;
-        const playerHeight = 80;
-        let ballX = playerX + 20;
-        let ballY = playerY - 10;
-        let ballSpeedY = 0; // 篮球Y轴速度
-        let isShooting = false; // 是否在投篮
-        let score = 0; // 得分
+        // 游戏元素参数（优化比例适配更大画布）
+        let playerX = 375;
+        const playerY = 380;
+        const playerWidth = 60;
+        const playerHeight = 100;
+        let ballX = playerX + 25;
+        let ballY = playerY - 15;
+        let ballSpeedY = 0;
+        let isShooting = false;
+        let score = 0;
 
-        // 篮筐位置
-        const hoopX = 300;
-        const hoopY = 100;
-        const hoopWidth = 80;
-        const hoopHeight = 20;
+        // 篮筐位置（更真实比例）
+        const hoopX = 400;
+        const hoopY = 150;
+        const hoopWidth = 100;
+        const hoopHeight = 25;
 
         // 键盘状态存储
-        const keys = {};
+        const keys = {
+            ArrowLeft: false,
+            ArrowRight: false,
+            Space: false
+        };
 
-        // 背景绘制（篮球场地面+篮筐支架）
+        // 背景绘制（真实篮球场）
         function drawBackground() {
-            // 天空背景渐变
+            // 天空渐变背景
+            let bgColor1 = score < 5 ? '#87ceeb' : score < 10 ? '#ffb74d' : '#263238';
+            let bgColor2 = score < 5 ? '#e0f7fa' : score < 10 ? '#fff3e0' : '#455a64';
             const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            bgGradient.addColorStop(0, '#87ceeb');
-            bgGradient.addColorStop(1, '#e0f7fa');
+            bgGradient.addColorStop(0, bgColor1);
+            bgGradient.addColorStop(1, bgColor2);
             ctx.fillStyle = bgGradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 篮球场地面
+            // 篮球场地面（绿色带标线）
             ctx.fillStyle = '#2e7d32';
-            ctx.fillRect(0, 380, canvas.width, 20);
+            ctx.fillRect(0, 450, canvas.width, 50);
+            // 中线
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 450);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.stroke();
+            // 三分线（简化半圆）
+            ctx.beginPath();
+            ctx.arc(hoopX + 50, 475, 150, 0, Math.PI);
+            ctx.stroke();
+        }
 
-            // 篮筐支架
-            ctx.fillStyle = '#795548';
-            ctx.fillRect(hoopX + 35, hoopY, 10, 150);
-            ctx.fillRect(hoopX, hoopY + 150, hoopWidth, 10);
-
-            // 篮筐
-            ctx.strokeStyle = '#ff9800';
-            ctx.lineWidth = 5;
+        // 篮筐绘制（带篮网+光影）
+        function drawHoop() {
+            // 篮筐支架（深棕色带阴影）
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(hoopX + 45, hoopY, 10, 200);
+            // 支架阴影
+            ctx.fillStyle = '#3e2723';
+            ctx.fillRect(hoopX + 55, hoopY + 5, 8, 195);
+            
+            // 篮筐圈（金属黄色带高光）
+            ctx.strokeStyle = '#ffca28';
+            ctx.lineWidth = 8;
             ctx.strokeRect(hoopX, hoopY, hoopWidth, hoopHeight);
+            // 篮筐高光
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(hoopX + 2, hoopY + 2, hoopWidth - 4, hoopHeight - 4);
+
+            // 篮网（白色网格）
+            ctx.strokeStyle = '#f5f5f5';
+            ctx.lineWidth = 1;
+            for(let i=0; i<8; i++){
+                const x = hoopX + (i * 12.5);
+                ctx.beginPath();
+                ctx.moveTo(x, hoopY + 25);
+                ctx.lineTo(x - 5 + (i * 2), hoopY + 80);
+                ctx.stroke();
+            }
+            // 篮网横向线条
+            ctx.beginPath();
+            ctx.moveTo(hoopX, hoopY + 50);
+            ctx.lineTo(hoopX + hoopWidth, hoopY + 50);
+            ctx.stroke();
         }
 
-        // 人物模型绘制（简化版小人）
+        // 人物绘制（真实比例+肢体细节）
         function drawPlayer() {
-            // 头部
+            // 头部（带脸）
             ctx.fillStyle = '#ffccbc';
             ctx.beginPath();
-            ctx.arc(playerX + 25, playerY + 15, 15, 0, Math.PI * 2);
+            ctx.arc(playerX + 30, playerY + 15, 18, 0, Math.PI * 2);
+            ctx.fill();
+            // 眼睛
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(playerX + 25, playerY + 12, 3, 0, Math.PI * 2);
+            ctx.arc(playerX + 35, playerY + 12, 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // 身体
-            ctx.fillStyle = '#2196f3';
-            ctx.fillRect(playerX + 15, playerY + 30, 20, 40);
+            // 身体（运动服配色）
+            ctx.fillStyle = '#e53935';
+            ctx.fillRect(playerX + 15, playerY + 33, 30, 50);
+            // 衣服条纹
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(playerX + 15, playerY + 33, 5, 50);
+            ctx.fillRect(playerX + 40, playerY + 33, 5, 50);
 
-            // 手臂
+            // 手臂（可随投篮轻微抬起）
+            const armY = isShooting ? playerY + 28 : playerY + 35;
             ctx.fillStyle = '#ffccbc';
-            ctx.fillRect(playerX + 5, playerY + 35, 10, 25);
-            ctx.fillRect(playerX + 35, playerY + 35, 10, 25);
+            ctx.fillRect(playerX + 5, armY, 10, 30);
+            ctx.fillRect(playerX + 45, armY, 10, 30);
+
+            // 腿部
+            ctx.fillStyle = '#1e88e5';
+            ctx.fillRect(playerX + 20, playerY + 83, 10, 20);
+            ctx.fillRect(playerX + 30, playerY + 83, 10, 20);
         }
 
-        // 篮球绘制
+        // 篮球绘制（立体纹路+光影）
         function drawBall() {
-            ctx.fillStyle = '#f44336';
+            // 篮球主体（橙色带渐变）
+            const ballGradient = ctx.createRadialGradient(ballX, ballY, 0, ballX, ballY, 15);
+            ballGradient.addColorStop(0, '#ff9800');
+            ballGradient.addColorStop(1, '#e64a19');
+            ctx.fillStyle = ballGradient;
             ctx.beginPath();
-            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+            ctx.arc(ballX, ballY, 15, 0, Math.PI * 2);
             ctx.fill();
 
-            // 篮球纹路
+            // 篮球黑色纹路（立体交叉）
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 2;
+            // 横向纹路
             ctx.beginPath();
-            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+            ctx.arc(ballX, ballY, 15, 0.2 * Math.PI, 0.8 * Math.PI);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(ballX - 10, ballY);
-            ctx.lineTo(ballX + 10, ballY);
+            ctx.arc(ballX, ballY, 15, 1.2 * Math.PI, 1.8 * Math.PI);
+            ctx.stroke();
+            // 纵向纹路
+            ctx.beginPath();
+            ctx.moveTo(ballX, ballY - 15);
+            ctx.lineTo(ballX, ballY + 15);
             ctx.stroke();
         }
 
-        // 得分绘制
+        // 得分绘制（带阴影）
         function drawScore() {
             ctx.fillStyle = '#000';
-            ctx.font = '24px Arial';
-            ctx.fillText(`得分: ${score}`, 20, 30);
+            ctx.font = '32px Arial';
+            ctx.fillText(`得分: ${score}`, 20, 40);
+            // 文字阴影
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`得分: ${score}`, 18, 38);
         }
 
-        // 碰撞检测（篮球进筐）
+        // 碰撞检测
         function checkCollision() {
             if (ballX > hoopX && ballX < hoopX + hoopWidth &&
                 ballY > hoopY && ballY < hoopY + hoopHeight) {
@@ -128,50 +198,59 @@
             }
         }
 
-        // 重置篮球位置
+        // 重置篮球
         function resetBall() {
-            ballX = playerX + 20;
-            ballY = playerY - 10;
+            ballX = playerX + 25;
+            ballY = playerY - 15;
             ballSpeedY = 0;
             isShooting = false;
         }
 
         // 游戏更新逻辑
         function update() {
-            // 人物移动（左右箭头）
-            if (keys.ArrowLeft && playerX > 0) playerX -= 5;
-            if (keys.ArrowRight && playerX < canvas.width - playerWidth) playerX += 5;
+            // 人物移动边界
+            if (keys.ArrowLeft && playerX > 20) playerX -= 6;
+            if (keys.ArrowRight && playerX < canvas.width - playerWidth - 20) playerX += 6;
 
-            // 投篮逻辑（空格触发）
+            // 投篮逻辑
             if (keys.Space && !isShooting) {
-                ballSpeedY = -15; // 向上速度
+                ballSpeedY = -20;
                 isShooting = true;
+                ballX = playerX + 25;
             }
 
-            // 篮球运动（受重力影响）
+            // 篮球运动（重力优化）
             if (isShooting) {
                 ballY += ballSpeedY;
-                ballSpeedY += 0.8; // 重力加速度
-
-                // 篮球落地重置
-                if (ballY > canvas.height) {
-                    resetBall();
-                }
+                ballSpeedY += 1;
+                if (ballY > canvas.height) resetBall();
                 checkCollision();
             } else {
-                // 篮球跟随人物
-                ballX = playerX + 20;
+                ballX = playerX + 25;
             }
         }
 
         // 键盘监听
-        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
-        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+        document.addEventListener('keydown', (e) => {
+            switch(e.keyCode) {
+                case 37: keys.ArrowLeft = true; break;
+                case 39: keys.ArrowRight = true; break;
+                case 32: keys.Space = true; e.preventDefault(); break;
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            switch(e.keyCode) {
+                case 37: keys.ArrowLeft = false; break;
+                case 39: keys.ArrowRight = false; break;
+                case 32: keys.Space = false; break;
+            }
+        });
 
-        // 游戏循环（修复执行顺序：清屏→绘制→更新）
+        // 游戏循环
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBackground();
+            drawHoop();
             drawPlayer();
             drawBall();
             drawScore();
@@ -179,7 +258,7 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // 启动游戏（必须放在所有函数之后）
+        // 启动游戏
         gameLoop();
     </script>
 </body>
