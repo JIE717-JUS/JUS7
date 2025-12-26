@@ -48,7 +48,11 @@
         const hoopWidth = 80;
         const hoopHeight = 20;
 
-        // 背景绘制（篮球场地面+篮筐支架）        function drawBackground() {
+        // 键盘状态存储
+        const keys = {};
+
+        // 背景绘制（篮球场地面+篮筐支架）
+        function drawBackground() {
             // 天空背景渐变
             const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             bgGradient.addColorStop(0, '#87ceeb');
@@ -108,7 +112,8 @@
             ctx.stroke();
         }
 
-        // 得分绘制        function drawScore() {
+        // 得分绘制
+        function drawScore() {
             ctx.fillStyle = '#000';
             ctx.font = '24px Arial';
             ctx.fillText(`得分: ${score}`, 20, 30);
@@ -160,11 +165,10 @@
         }
 
         // 键盘监听
-        const keys = {};
         document.addEventListener('keydown', (e) => { keys[e.key] = true; });
         document.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-        // 游戏循环
+        // 游戏循环（修复执行顺序：清屏→绘制→更新）
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBackground();
@@ -175,6 +179,7 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // 启动游戏（必须放在所有函数之后）
         gameLoop();
     </script>
 </body>
