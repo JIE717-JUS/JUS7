@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>我的斗牛游戏</title>
+  <style>
+    body { font-family: Arial; text-align: center; background: #f0f0f0; }
+    #game { max-width: 600px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .card { display: inline-block; padding: 1rem; margin: 0.5rem; background: white; border: 1px solid #333; border-radius: 4px; min-width: 40px; font-weight: bold; }
+    .btn { padding: 0.8rem 1.5rem; margin: 0.5rem; border: none; border-radius: 4px; background: #2c3e50; color: white; cursor: pointer; }
+    .btn:hover { background: #34495e; }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <h1>斗牛游戏</h1>
+    <div id="player-cards" class="cards"></div>
+    <div id="banker-cards" class="cards"></div>
+    <div id="result"></div>
+    <button class="btn" onclick="startGame()">开始游戏</button>
+  </div>
+  <script>
+    // 牌组、发牌、算牛核心逻辑
+    const suits = ['♠', '♥', '♣', '♦'];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    let deck = [];
+
+    function createDeck() { deck = suits.flatMap(s => ranks.map(r => ({ suit: s, rank: r, value: r === 'A' ? 1 : isNaN(r) ? 10 : Number(r) }))); }
+    function shuffleDeck() { deck.sort(() => Math.random()-0.5); }
+    function dealHand() { return deck.splice(0, 5); }
+    function getHandValue(hand) { return hand.reduce((sum, card) => sum + card.value, 0); }
+    function hasBull(hand) {
+      for (let a=0;a<3;a++) for (let b=a+1;b<4;b++) for (let c=b+1;c<5;c++)
+        if ((hand[a].value + hand[b].value + hand[c].value) % 10 === 0) return true;
+      return false;
+    }
+    function getBullPoint(hand) {
+      if (!hasBull(hand)) return -1;
+      for (let a=0;a<3;a++) for (let b=a+1;b<4;b++) for (let c=b+1;c<5;c++)
+        if ((hand[a].value + hand[b].value + hand[c].value) % 10 === 0) {
+          const rest = hand.filter((_, i) => i !== a && i !== b && i !== c);
+          return (rest[0].value + rest[1].value) % 10 || 10;
+        }
+      return -1;
+    }
+    function startGame() {
+      createDeck(); shuffleDeck();
+      const playerHand = dealHand(), bankerHand = dealHand();
+      const playerBull = getBullPoint(playerHand), bankerBull = getBullPoint(bankerHand);
+      let resultText = '';
+      if (playerBull > bankerBull) resultText = '你赢了！';
+      else if (playerBull < bankerBull) resultText = '庄家赢了！';
+      else resultText = '平局！';
+      document.getElementById('player-cards').innerHTML = `你的牌: ${playerHand.map(c => `${c.suit}${c.rank}`).join(' ')} (${playerBull === -1 ? '无牛' : `牛${playerBull}`})`;
+      document.getElementById('banker-cards').innerHTML = `庄家的牌: ${bankerHand.map(c => `${c.suit}${c.rank}`).join(' ')} (${bankerBull === -1 ? '无牛' : `牛${bankerBull}`})`;
+      document.getElementById('result').innerText = resultText;
+    }
+  </script>
+</body>
+</html>
