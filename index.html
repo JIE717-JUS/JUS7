@@ -2,128 +2,179 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>双人乒乓球小游戏</title>
+    <title>简易篮球小游戏</title>
     <style>
-        body { text-align: center; background-color: #f0f0f0; font-family: Arial; }
-        #gameCanvas { border: 3px solid #333; background-color: #fff; }
-        .controls { margin-top: 10px; }
-        p { font-size: 14px; color: #555; }
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #gameCanvas {
+            border: 3px solid #333;
+            background-color: #e0f7fa;
+        }
+        .tips {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>双人乒乓球对战</h1>
+    <h1>投篮小游戏</h1>
     <canvas id="gameCanvas" width="600" height="400"></canvas>
-    <div class="controls">
-        <p>玩家1：W键 上移 | S键 下移 &nbsp;&nbsp; 玩家2：↑键 上移 | ↓键 下移</p>
-        <button onclick="restartGame()">重新开始</button>
-    </div>
+    <div class="tips">按 空格 投篮 | 按 左右箭头 移动人物</div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 球拍、球、分数配置
-        const paddleWidth = 15, paddleHeight = 80;
-        let paddle1Y = (canvas.height - paddleHeight) / 2;
-        let paddle2Y = (canvas.height - paddleHeight) / 2;
-        let ballX = canvas.width / 2, ballY = canvas.height / 2;
-        let ballSpeedX = 3, ballSpeedY = 2;
-        let score1 = 0, score2 = 0;
+        // 游戏元素参数
+        let playerX = 275; // 人物X坐标
+        const playerY = 320; // 人物Y坐标（固定高度）
+        const playerWidth = 50;
+        const playerHeight = 80;
+        let ballX = playerX + 20;
+        let ballY = playerY - 10;
+        let ballSpeedY = 0; // 篮球Y轴速度
+        let isShooting = false; // 是否在投篮
+        let score = 0; // 得分
 
-        // 键盘控制
-        const keys = {};
-        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
-        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+        // 篮筐位置
+        const hoopX = 300;
+        const hoopY = 100;
+        const hoopWidth = 80;
+        const hoopHeight = 20;
 
-        // 绘制游戏元素
-        function draw() {
-            // 清屏
-            ctx.fillStyle = '#fff';
+        // 背景绘制（篮球场地面+篮筐支架）        function drawBackground() {
+            // 天空背景渐变
+            const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGradient.addColorStop(0, '#87ceeb');
+            bgGradient.addColorStop(1, '#e0f7fa');
+            ctx.fillStyle = bgGradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // 中线
-            ctx.setLineDash([10, 10]);
-            ctx.strokeStyle = '#ccc';
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]);
 
-            // 球拍1（左）
-            ctx.fillStyle = '#2c3e50';
-            ctx.fillRect(10, paddle1Y, paddleWidth, paddleHeight);
-            // 球拍2（右）
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(canvas.width - 25, paddle2Y, paddleWidth, paddleHeight);
-            // 球
-            ctx.fillStyle = '#3498db';
+            // 篮球场地面
+            ctx.fillStyle = '#2e7d32';
+            ctx.fillRect(0, 380, canvas.width, 20);
+
+            // 篮筐支架
+            ctx.fillStyle = '#795548';
+            ctx.fillRect(hoopX + 35, hoopY, 10, 150);
+            ctx.fillRect(hoopX, hoopY + 150, hoopWidth, 10);
+
+            // 篮筐
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 5;
+            ctx.strokeRect(hoopX, hoopY, hoopWidth, hoopHeight);
+        }
+
+        // 人物模型绘制（简化版小人）
+        function drawPlayer() {
+            // 头部
+            ctx.fillStyle = '#ffccbc';
+            ctx.beginPath();
+            ctx.arc(playerX + 25, playerY + 15, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 身体
+            ctx.fillStyle = '#2196f3';
+            ctx.fillRect(playerX + 15, playerY + 30, 20, 40);
+
+            // 手臂
+            ctx.fillStyle = '#ffccbc';
+            ctx.fillRect(playerX + 5, playerY + 35, 10, 25);
+            ctx.fillRect(playerX + 35, playerY + 35, 10, 25);
+        }
+
+        // 篮球绘制
+        function drawBall() {
+            ctx.fillStyle = '#f44336';
             ctx.beginPath();
             ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
             ctx.fill();
 
-            // 分数
+            // 篮球纹路
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(ballX - 10, ballY);
+            ctx.lineTo(ballX + 10, ballY);
+            ctx.stroke();
+        }
+
+        // 得分绘制        function drawScore() {
+            ctx.fillStyle = '#000';
             ctx.font = '24px Arial';
-            ctx.fillText(`玩家1: ${score1}`, 150, 30);
-            ctx.fillText(`玩家2: ${score2}`, canvas.width - 220, 30);
+            ctx.fillText(`得分: ${score}`, 20, 30);
         }
 
-        // 更新游戏逻辑
-        function update() {
-            // 玩家1移动
-            if (keys['w'] && paddle1Y > 0) paddle1Y -= 6;
-            if (keys['s'] && paddle1Y < canvas.height - paddleHeight) paddle1Y += 6;
-            // 玩家2移动
-            if (keys['ArrowUp'] && paddle2Y > 0) paddle2Y -= 6;
-            if (keys['ArrowDown'] && paddle2Y < canvas.height - paddleHeight) paddle2Y += 6;
-
-            // 球移动
-            ballX += ballSpeedX;
-            ballY += ballSpeedY;
-
-            // 球撞上下边界反弹
-            if (ballY - 10 < 0 || ballY + 10 > canvas.height) ballSpeedY = -ballSpeedY;
-
-            // 球撞球拍反弹
-            if (ballX - 10 < 25 && ballY > paddle1Y && ballY < paddle1Y + paddleHeight) {
-                ballSpeedX = -ballSpeedX;
-            }
-            if (ballX + 10 > canvas.width - 25 && ballY > paddle2Y && ballY < paddle2Y + paddleHeight) {
-                ballSpeedX = -ballSpeedX;
-            }
-
-            // 得分判定
-            if (ballX < 0) {
-                score2++;
-                resetBall();
-            }
-            if (ballX > canvas.width) {
-                score1++;
+        // 碰撞检测（篮球进筐）
+        function checkCollision() {
+            if (ballX > hoopX && ballX < hoopX + hoopWidth &&
+                ballY > hoopY && ballY < hoopY + hoopHeight) {
+                score++;
                 resetBall();
             }
         }
 
-        // 重置球的位置
+        // 重置篮球位置
         function resetBall() {
-            ballX = canvas.width / 2;
-            ballY = canvas.height / 2;
-            ballSpeedX = -ballSpeedX;
-            ballSpeedY = 3 * (Math.random() > 0.5 ? 1 : -1);
+            ballX = playerX + 20;
+            ballY = playerY - 10;
+            ballSpeedY = 0;
+            isShooting = false;
         }
 
-        // 重新开始游戏
-        function restartGame() {
-            score1 = 0;
-            score2 = 0;
-            resetBall();
+        // 游戏更新逻辑
+        function update() {
+            // 人物移动（左右箭头）
+            if (keys.ArrowLeft && playerX > 0) playerX -= 5;
+            if (keys.ArrowRight && playerX < canvas.width - playerWidth) playerX += 5;
+
+            // 投篮逻辑（空格触发）
+            if (keys.Space && !isShooting) {
+                ballSpeedY = -15; // 向上速度
+                isShooting = true;
+            }
+
+            // 篮球运动（受重力影响）
+            if (isShooting) {
+                ballY += ballSpeedY;
+                ballSpeedY += 0.8; // 重力加速度
+
+                // 篮球落地重置
+                if (ballY > canvas.height) {
+                    resetBall();
+                }
+                checkCollision();
+            } else {
+                // 篮球跟随人物
+                ballX = playerX + 20;
+            }
         }
+
+        // 键盘监听
+        const keys = {};
+        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
         // 游戏循环
         function gameLoop() {
-            draw();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawPlayer();
+            drawBall();
+            drawScore();
             update();
             requestAnimationFrame(gameLoop);
         }
+
         gameLoop();
     </script>
 </body>
