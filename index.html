@@ -1,60 +1,130 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>我的斗牛游戏</title>
-  <style>
-    body { font-family: Arial; text-align: center; background: #f0f0f0; }
-    #game { max-width: 600px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    .card { display: inline-block; padding: 1rem; margin: 0.5rem; background: white; border: 1px solid #333; border-radius: 4px; min-width: 40px; font-weight: bold; }
-    .btn { padding: 0.8rem 1.5rem; margin: 0.5rem; border: none; border-radius: 4px; background: #2c3e50; color: white; cursor: pointer; }
-    .btn:hover { background: #34495e; }
-  </style>
+    <meta charset="UTF-8">
+    <title>双人乒乓球小游戏</title>
+    <style>
+        body { text-align: center; background-color: #f0f0f0; font-family: Arial; }
+        #gameCanvas { border: 3px solid #333; background-color: #fff; }
+        .controls { margin-top: 10px; }
+        p { font-size: 14px; color: #555; }
+    </style>
 </head>
 <body>
-  <div id="game">
-    <h1>斗牛游戏</h1>
-    <div id="player-cards" class="cards"></div>
-    <div id="banker-cards" class="cards"></div>
-    <div id="result"></div>
-    <button class="btn" onclick="startGame()">开始游戏</button>
-  </div>
-  <script>
-    // 牌组、发牌、算牛核心逻辑
-    const suits = ['♠', '♥', '♣', '♦'];
-    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-    let deck = [];
+    <h1>双人乒乓球对战</h1>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <div class="controls">
+        <p>玩家1：W键 上移 | S键 下移 &nbsp;&nbsp; 玩家2：↑键 上移 | ↓键 下移</p>
+        <button onclick="restartGame()">重新开始</button>
+    </div>
 
-    function createDeck() { deck = suits.flatMap(s => ranks.map(r => ({ suit: s, rank: r, value: r === 'A' ? 1 : isNaN(r) ? 10 : Number(r) }))); }
-    function shuffleDeck() { deck.sort(() => Math.random()-0.5); }
-    function dealHand() { return deck.splice(0, 5); }
-    function getHandValue(hand) { return hand.reduce((sum, card) => sum + card.value, 0); }
-    function hasBull(hand) {
-      for (let a=0;a<3;a++) for (let b=a+1;b<4;b++) for (let c=b+1;c<5;c++)
-        if ((hand[a].value + hand[b].value + hand[c].value) % 10 === 0) return true;
-      return false;
-    }
-    function getBullPoint(hand) {
-      if (!hasBull(hand)) return -1;
-      for (let a=0;a<3;a++) for (let b=a+1;b<4;b++) for (let c=b+1;c<5;c++)
-        if ((hand[a].value + hand[b].value + hand[c].value) % 10 === 0) {
-          const rest = hand.filter((_, i) => i !== a && i !== b && i !== c);
-          return (rest[0].value + rest[1].value) % 10 || 10;
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 球拍、球、分数配置
+        const paddleWidth = 15, paddleHeight = 80;
+        let paddle1Y = (canvas.height - paddleHeight) / 2;
+        let paddle2Y = (canvas.height - paddleHeight) / 2;
+        let ballX = canvas.width / 2, ballY = canvas.height / 2;
+        let ballSpeedX = 5, ballSpeedY = 3;
+        let score1 = 0, score2 = 0;
+
+        // 键盘控制
+        const keys = {};
+        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        // 绘制游戏元素
+        function draw() {
+            // 清屏
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 中线
+            ctx.setLineDash([10, 10]);
+            ctx.strokeStyle = '#ccc';
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 球拍1（左）
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(10, paddle1Y, paddleWidth, paddleHeight);
+            // 球拍2（右）
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(canvas.width - 25, paddle2Y, paddleWidth, paddleHeight);
+            // 球
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 分数
+            ctx.font = '24px Arial';
+            ctx.fillText(`玩家1: ${score1}`, 150, 30);
+            ctx.fillText(`玩家2: ${score2}`, canvas.width - 220, 30);
         }
-      return -1;
-    }
-    function startGame() {
-      createDeck(); shuffleDeck();
-      const playerHand = dealHand(), bankerHand = dealHand();
-      const playerBull = getBullPoint(playerHand), bankerBull = getBullPoint(bankerHand);
-      let resultText = '';
-      if (playerBull > bankerBull) resultText = '你赢了！';
-      else if (playerBull < bankerBull) resultText = '庄家赢了！';
-      else resultText = '平局！';
-      document.getElementById('player-cards').innerHTML = `你的牌: ${playerHand.map(c => `${c.suit}${c.rank}`).join(' ')} (${playerBull === -1 ? '无牛' : `牛${playerBull}`})`;
-      document.getElementById('banker-cards').innerHTML = `庄家的牌: ${bankerHand.map(c => `${c.suit}${c.rank}`).join(' ')} (${bankerBull === -1 ? '无牛' : `牛${bankerBull}`})`;
-      document.getElementById('result').innerText = resultText;
-    }
-  </script>
+
+        // 更新游戏逻辑
+        function update() {
+            // 玩家1移动
+            if (keys['w'] && paddle1Y > 0) paddle1Y -= 6;
+            if (keys['s'] && paddle1Y < canvas.height - paddleHeight) paddle1Y += 6;
+            // 玩家2移动
+            if (keys['ArrowUp'] && paddle2Y > 0) paddle2Y -= 6;
+            if (keys['ArrowDown'] && paddle2Y < canvas.height - paddleHeight) paddle2Y += 6;
+
+            // 球移动
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            // 球撞上下边界反弹
+            if (ballY - 10 < 0 || ballY + 10 > canvas.height) ballSpeedY = -ballSpeedY;
+
+            // 球撞球拍反弹
+            if (ballX - 10 < 25 && ballY > paddle1Y && ballY < paddle1Y + paddleHeight) {
+                ballSpeedX = -ballSpeedX;
+            }
+            if (ballX + 10 > canvas.width - 25 && ballY > paddle2Y && ballY < paddle2Y + paddleHeight) {
+                ballSpeedX = -ballSpeedX;
+            }
+
+            // 得分判定
+            if (ballX < 0) {
+                score2++;
+                resetBall();
+            }
+            if (ballX > canvas.width) {
+                score1++;
+                resetBall();
+            }
+        }
+
+        // 重置球的位置
+        function resetBall() {
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+            ballSpeedX = -ballSpeedX;
+            ballSpeedY = 3 * (Math.random() > 0.5 ? 1 : -1);
+        }
+
+        // 重新开始游戏
+        function restartGame() {
+            score1 = 0;
+            score2 = 0;
+            resetBall();
+        }
+
+        // 游戏循环
+        function gameLoop() {
+            draw();
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+        gameLoop();
+    </script>
 </body>
 </html>
